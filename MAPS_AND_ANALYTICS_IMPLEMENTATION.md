@@ -120,13 +120,13 @@ Every user action triggers a log entry in the console with:
 
 1. **`.env` file** (line 10):
    ```
-   GOOGLE_MAPS_API_KEY=AIzaSyAFkOhddibMIY0iA3VVAUx7Nt69pJSBkio
+   GOOGLE_MAPS_API_KEY= "<from env file>"
    ```
 
 2. **`app.json`** (line 35):
    ```json
    "googleMaps": {
-     "apiKey": "AIzaSyAFkOhddibMIY0iA3VVAUx7Nt69pJSBkio"
+     "apiKey": "from env file"
    }
    ```
 
