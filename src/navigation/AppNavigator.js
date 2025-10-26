@@ -2,9 +2,10 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { TouchableOpacity, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { logNavigation } from '../utils/analytics';
+import { COLORS } from '../constants/theme';
 
 // Screens
 import LoginScreen from '../screens/LoginScreen';
@@ -12,6 +13,7 @@ import SignupScreen from '../screens/SignupScreen';
 import MapScreen from '../screens/MapScreen';
 import WalletScreen from '../screens/WalletScreen';
 import HistoryScreen from '../screens/HistoryScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import BookingScreen from '../screens/BookingScreen';
 import PaymentScreen from '../screens/PaymentScreen';
 
@@ -20,20 +22,30 @@ const Tab = createBottomTabNavigator();
 
 // Tab Navigator for authenticated users
 function MainTabNavigator() {
-  const { logout } = useAuth();
-
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#2196F3',
-        tabBarInactiveTintColor: '#999',
+        tabBarActiveTintColor: COLORS.yellow,
+        tabBarInactiveTintColor: COLORS.gray400,
         tabBarStyle: {
-          paddingBottom: 5,
-          paddingTop: 5,
-          height: 60,
+          backgroundColor: COLORS.primary,
+          borderTopColor: COLORS.border,
+          borderTopWidth: 1,
+          paddingBottom: 20,
+          paddingTop: 8,
+          height: 75,
         },
         tabBarLabelStyle: {
           fontSize: 12,
+          fontWeight: '600',
+        },
+        headerStyle: {
+          backgroundColor: COLORS.primary,
+        },
+        headerTintColor: COLORS.textPrimary,
+        headerTitleStyle: {
+          fontWeight: 'bold',
+          color: COLORS.yellow,
         },
       }}
       screenListeners={{
@@ -48,15 +60,10 @@ function MainTabNavigator() {
         name="Map"
         component={MapScreen}
         options={{
+          headerShown: false,
           tabBarLabel: 'Map',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🗺️</Text>,
-          headerRight: () => (
-            <TouchableOpacity
-              onPress={logout}
-              style={{ marginRight: 16, padding: 8 }}
-            >
-              <Text style={{ color: '#2196F3', fontSize: 16 }}>Logout</Text>
-            </TouchableOpacity>
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="map-outline" size={size} color={color} />
           ),
         }}
       />
@@ -65,7 +72,9 @@ function MainTabNavigator() {
         component={WalletScreen}
         options={{
           tabBarLabel: 'Wallet',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>💰</Text>,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="wallet-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tab.Screen
@@ -73,7 +82,19 @@ function MainTabNavigator() {
         component={HistoryScreen}
         options={{
           tabBarLabel: 'History',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>📅</Text>,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="time-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: 'Profile',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
+          ),
         }}
       />
     </Tab.Navigator>
@@ -118,6 +139,13 @@ export default function AppNavigator() {
               options={{
                 presentation: 'modal',
                 title: 'Book Session',
+                headerStyle: {
+                  backgroundColor: COLORS.primary,
+                },
+                headerTintColor: COLORS.textPrimary,
+                headerTitleStyle: {
+                  color: COLORS.yellow,
+                },
               }}
             />
             <Stack.Screen
@@ -126,6 +154,13 @@ export default function AppNavigator() {
               options={{
                 presentation: 'modal',
                 title: 'Payment',
+                headerStyle: {
+                  backgroundColor: COLORS.primary,
+                },
+                headerTintColor: COLORS.textPrimary,
+                headerTitleStyle: {
+                  color: COLORS.yellow,
+                },
               }}
             />
           </>

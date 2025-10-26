@@ -9,11 +9,14 @@ import {
   TextInput,
   Alert,
   Platform,
+  StatusBar,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
 import { useAuth } from '../context/AuthContext';
 import { logWallet } from '../utils/analytics';
+import { COLORS, FONT_SIZES, SPACING, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 
 export default function WalletScreen() {
   const { user } = useAuth();
@@ -22,41 +25,47 @@ export default function WalletScreen() {
   const [showTransactionsModal, setShowTransactionsModal] = useState(false);
   const [recipientAddress, setRecipientAddress] = useState('');
   const [amount, setAmount] = useState('');
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     logWallet.screenOpened();
+    loadPaymentHistory();
   }, []);
+
+  const loadPaymentHistory = async () => {
+    try {
+      const { paymentAPI } = require('../services/api');
+      const response = await paymentAPI.getUserPaymentHistory();
+
+      if (response.success && response.data) {
+        // Transform backend payment data to wallet transaction format
+        const formattedTransactions = response.data.payments.map(payment => ({
+          id: payment.paymentId,
+          type: 'payment',
+          amount: payment.amountUsd,
+          flowAmount: payment.flowTokenAmount,
+          description: `${payment.serviceType === 'parking' ? 'Parking' : 'Charging'} - ${payment.serviceAddress}`,
+          date: new Date(payment.createdAt).toISOString().split('T')[0],
+          status: payment.status,
+          transactionHash: payment.transactionHash,
+        }));
+        setTransactions(formattedTransactions);
+      } else {
+        // If no payments, show empty array
+        setTransactions([]);
+      }
+    } catch (error) {
+      console.error('Error loading payment history:', error);
+      // On error, use empty array
+      setTransactions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Mock balance - in a real app, this would come from blockchain
   const balance = '150.00';
-
-  // Mock transactions - in a real app, this would come from blockchain
-  const transactions = [
-    {
-      id: '1',
-      type: 'received',
-      amount: '50.00',
-      from: '0x1234...5678',
-      date: '2025-10-20',
-      status: 'completed',
-    },
-    {
-      id: '2',
-      type: 'sent',
-      amount: '20.00',
-      to: '0xabcd...efgh',
-      date: '2025-10-19',
-      status: 'completed',
-    },
-    {
-      id: '3',
-      type: 'payment',
-      amount: '15.00',
-      description: 'Parking Session',
-      date: '2025-10-18',
-      status: 'completed',
-    },
-  ];
 
   const handleSend = () => {
     logWallet.sendAttempt(recipientAddress, amount);
@@ -103,6 +112,7 @@ export default function WalletScreen() {
 
   return (
     <ScrollView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       <View style={styles.content}>
         {/* Wallet Balance Card */}
         <View style={styles.balanceCard}>
@@ -122,7 +132,7 @@ export default function WalletScreen() {
               setShowSendModal(true);
             }}
           >
-            <Text style={styles.actionButtonIcon}>↑</Text>
+            <Ionicons name="arrow-up-circle-outline" size={28} color={COLORS.yellow} />
             <Text style={styles.actionButtonText}>Send</Text>
           </TouchableOpacity>
 
@@ -133,7 +143,7 @@ export default function WalletScreen() {
               setShowReceiveModal(true);
             }}
           >
-            <Text style={styles.actionButtonIcon}>↓</Text>
+            <Ionicons name="arrow-down-circle-outline" size={28} color={COLORS.yellow} />
             <Text style={styles.actionButtonText}>Receive</Text>
           </TouchableOpacity>
 
@@ -144,32 +154,40 @@ export default function WalletScreen() {
               setShowTransactionsModal(true);
             }}
           >
-            <Text style={styles.actionButtonIcon}>≡</Text>
-            <Text style={styles.actionButtonText}>Transactions</Text>
+            <Ionicons name="list-outline" size={28} color={COLORS.yellow} />
+            <Text style={styles.actionButtonText}>History</Text>
           </TouchableOpacity>
         </View>
 
         {/* Recent Transactions Preview */}
         <View style={styles.recentSection}>
           <Text style={styles.sectionTitle}>Recent Activity</Text>
-          {transactions.slice(0, 3).map((transaction) => (
-            <View key={transaction.id} style={styles.transactionItem}>
-              <View style={styles.transactionLeft}>
-                <Text style={styles.transactionType}>
-                  {transaction.type === 'received' && '↓ Received'}
-                  {transaction.type === 'sent' && '↑ Sent'}
-                  {transaction.type === 'payment' && '💳 Payment'}
-                </Text>
-                <Text style={styles.transactionDate}>{transaction.date}</Text>
+          {loading ? (
+            <Text style={styles.loadingText}>Loading transactions...</Text>
+          ) : transactions.length === 0 ? (
+            <Text style={styles.emptyText}>No transactions yet</Text>
+          ) : (
+            transactions.slice(0, 3).map((transaction) => (
+              <View key={transaction.id} style={styles.transactionItem}>
+                <View style={styles.transactionLeft}>
+                  <Text style={styles.transactionType}>
+                    {transaction.description || 'Payment'}
+                  </Text>
+                  <Text style={styles.transactionDate}>{transaction.date}</Text>
+                </View>
+                <View style={styles.transactionRight}>
+                  <Text style={[styles.transactionAmount, styles.amountNegative]}>
+                    ${transaction.amount}
+                  </Text>
+                  {transaction.flowAmount && (
+                    <Text style={styles.flowAmount}>
+                      {transaction.flowAmount.toFixed(2)} FLOW
+                    </Text>
+                  )}
+                </View>
               </View>
-              <Text style={[
-                styles.transactionAmount,
-                transaction.type === 'received' ? styles.amountPositive : styles.amountNegative
-              ]}>
-                {transaction.type === 'received' ? '+' : '-'}{transaction.amount} CHV
-              </Text>
-            </View>
-          ))}
+            ))
+          )}
         </View>
 
         {/* Send Modal */}
@@ -186,6 +204,7 @@ export default function WalletScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Recipient Wallet Address"
+                placeholderTextColor={COLORS.textPlaceholder}
                 value={recipientAddress}
                 onChangeText={setRecipientAddress}
                 autoCapitalize="none"
@@ -194,6 +213,7 @@ export default function WalletScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Amount (CHV)"
+                placeholderTextColor={COLORS.textPlaceholder}
                 value={amount}
                 onChangeText={setAmount}
                 keyboardType="decimal-pad"
@@ -269,9 +289,9 @@ export default function WalletScreen() {
                   <View key={transaction.id} style={styles.transactionDetailItem}>
                     <View style={styles.transactionHeader}>
                       <Text style={styles.transactionTypeDetail}>
-                        {transaction.type === 'received' && '↓ Received'}
-                        {transaction.type === 'sent' && '↑ Sent'}
-                        {transaction.type === 'payment' && '💳 Payment'}
+                        {transaction.type === 'received' && 'Received'}
+                        {transaction.type === 'sent' && 'Sent'}
+                        {transaction.type === 'payment' && 'Payment'}
                       </Text>
                       <Text style={[
                         styles.transactionAmountDetail,
@@ -308,224 +328,252 @@ export default function WalletScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.primary,
   },
   content: {
-    padding: 20,
+    padding: SPACING.xl,
   },
   balanceCard: {
-    backgroundColor: '#2196F3',
-    padding: 30,
-    borderRadius: 16,
-    marginBottom: 20,
+    backgroundColor: COLORS.cardBackground,
+    padding: SPACING['3xl'],
+    borderRadius: BORDER_RADIUS.xl,
+    marginBottom: SPACING.xl,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOWS.large,
   },
   balanceLabel: {
-    color: '#fff',
-    fontSize: 16,
-    marginBottom: 8,
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZES.base,
+    marginBottom: SPACING.sm,
   },
   balanceAmount: {
-    color: '#fff',
+    color: COLORS.yellow,
     fontSize: 42,
     fontWeight: 'bold',
-    marginBottom: 12,
+    marginBottom: SPACING.md,
   },
   walletAddress: {
-    color: '#fff',
-    fontSize: 12,
-    opacity: 0.8,
+    color: COLORS.textMuted,
+    fontSize: FONT_SIZES.xs,
   },
   actionsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 30,
+    marginBottom: SPACING['3xl'],
+    gap: SPACING.md,
   },
   actionButton: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.cardBackground,
     flex: 1,
-    marginHorizontal: 6,
-    padding: 20,
-    borderRadius: 12,
+    padding: SPACING.xl,
+    borderRadius: BORDER_RADIUS.lg,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOWS.medium,
   },
   actionButtonIcon: {
     fontSize: 28,
-    marginBottom: 8,
+    color: COLORS.yellow,
+    marginBottom: SPACING.sm,
   },
   actionButtonText: {
-    fontSize: 14,
-    color: '#333',
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textPrimary,
     fontWeight: '600',
   },
   recentSection: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 12,
+    backgroundColor: COLORS.cardBackground,
+    padding: SPACING.xl,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 16,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.lg,
   },
   transactionItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: COLORS.border,
   },
   transactionLeft: {
     flex: 1,
   },
+  transactionRight: {
+    alignItems: 'flex-end',
+  },
   transactionType: {
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 4,
+    fontSize: FONT_SIZES.base,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.xs,
   },
   transactionDate: {
-    fontSize: 12,
-    color: '#999',
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textMuted,
   },
   transactionAmount: {
-    fontSize: 16,
+    fontSize: FONT_SIZES.base,
     fontWeight: 'bold',
   },
+  flowAmount: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.yellow,
+    marginTop: 2,
+  },
+  loadingText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    paddingVertical: SPACING.lg,
+  },
+  emptyText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    paddingVertical: SPACING.lg,
+    fontStyle: 'italic',
+  },
   amountPositive: {
-    color: '#4CAF50',
+    color: COLORS.success,
   },
   amountNegative: {
-    color: '#666',
+    color: COLORS.textSecondary,
   },
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
   },
   modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING['2xl'],
     width: '90%',
     maxHeight: '80%',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   modalTitle: {
-    fontSize: 24,
+    fontSize: FONT_SIZES['2xl'],
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 20,
+    color: COLORS.yellow,
+    marginBottom: SPACING.xl,
     textAlign: 'center',
   },
   input: {
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 8,
-    fontSize: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#ddd',
+    backgroundColor: COLORS.inputBackground,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg,
+    fontSize: FONT_SIZES.base,
+    marginBottom: SPACING.lg,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    color: COLORS.white,
   },
   balanceInfo: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 20,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.xl,
     textAlign: 'center',
   },
   modalButton: {
-    backgroundColor: '#2196F3',
-    paddingVertical: 16,
-    borderRadius: 8,
+    backgroundColor: COLORS.yellow,
+    paddingVertical: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: SPACING.md,
+    ...SHADOWS.medium,
   },
   modalButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    color: COLORS.primary,
+    fontSize: FONT_SIZES.base,
     fontWeight: 'bold',
   },
   modalCancelButton: {
-    paddingVertical: 16,
+    paddingVertical: SPACING.lg,
     alignItems: 'center',
   },
   modalCancelButtonText: {
-    color: '#666',
-    fontSize: 16,
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZES.base,
   },
   qrContainer: {
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 20,
+    padding: SPACING.xl,
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.lg,
+    marginBottom: SPACING.xl,
   },
   addressLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.sm,
     textAlign: 'center',
   },
   addressText: {
-    fontSize: 12,
-    color: '#333',
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textPrimary,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: SPACING.lg,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   copyButton: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: COLORS.success,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: SPACING.md,
   },
   copyButtonText: {
-    color: '#fff',
-    fontSize: 14,
+    color: COLORS.white,
+    fontSize: FONT_SIZES.sm,
     fontWeight: 'bold',
   },
   transactionsList: {
     maxHeight: 400,
   },
   transactionDetailItem: {
-    padding: 16,
+    padding: SPACING.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: COLORS.border,
   },
   transactionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   transactionTypeDetail: {
-    fontSize: 16,
+    fontSize: FONT_SIZES.base,
     fontWeight: 'bold',
-    color: '#333',
+    color: COLORS.textPrimary,
   },
   transactionAmountDetail: {
-    fontSize: 16,
+    fontSize: FONT_SIZES.base,
     fontWeight: 'bold',
   },
   transactionInfo: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.xs,
   },
   transactionDateDetail: {
-    fontSize: 12,
-    color: '#999',
-    marginBottom: 4,
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textMuted,
+    marginBottom: SPACING.xs,
   },
   transactionStatus: {
-    fontSize: 12,
-    color: '#4CAF50',
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.success,
     textTransform: 'capitalize',
   },
 });

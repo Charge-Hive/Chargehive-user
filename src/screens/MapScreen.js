@@ -7,17 +7,24 @@ import {
   TouchableOpacity,
   Text,
   Platform,
+  StatusBar,
+  ScrollView,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { Ionicons } from '@expo/vector-icons';
 import { serviceAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { logMap } from '../utils/analytics';
+import { COLORS, FONT_SIZES, SPACING, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 
 export default function MapScreen({ navigation }) {
   const [location, setLocation] = useState(null);
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showLegend, setShowLegend] = useState(false);
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
@@ -158,9 +165,10 @@ export default function MapScreen({ navigation }) {
   };
 
   const getMarkerColor = (service) => {
-    // Green if status is 'available' or 'active', Red otherwise (null, 'occupied', 'maintenance', etc.)
+    // Use theme colors: Yellow for available chargers, Blue for available parking, Gray for unavailable
     const isAvailable = service.status === 'available' || service.status === 'active';
-    return isAvailable ? '#4CAF50' : '#F44336'; // Green : Red
+    if (!isAvailable) return COLORS.gray500;
+    return service.serviceType === 'parking' ? COLORS.parking : COLORS.charging;
   };
 
   const getMarkerLabel = (service) => {
@@ -205,7 +213,8 @@ export default function MapScreen({ navigation }) {
   if (loading || !location) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+        <ActivityIndicator size="large" color={COLORS.yellow} />
         <Text style={styles.loadingText}>Loading map...</Text>
       </View>
     );
@@ -213,6 +222,29 @@ export default function MapScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft} />
+        <Text style={styles.headerTitle}>Map</Text>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.infoButton}
+            onPress={() => setShowLegend(true)}
+          >
+            <Ionicons name="information-circle-outline" size={24} color={COLORS.yellow} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.refreshButton}
+            onPress={handleRefresh}
+          >
+            <Ionicons name="refresh-outline" size={24} color={COLORS.yellow} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Map */}
       <MapView
         provider={PROVIDER_GOOGLE}
         style={styles.map}
@@ -221,13 +253,10 @@ export default function MapScreen({ navigation }) {
         showsMyLocationButton={true}
         showsCompass={true}
       >
-        {/* User location marker is handled by showsUserLocation */}
-
         {/* Service markers */}
         {services.map((service) => {
           const markerColor = getMarkerColor(service);
           const markerLabel = getMarkerLabel(service);
-          const isAvailable = service.status === 'available' || service.status === 'active';
 
           return (
             <Marker
@@ -236,8 +265,6 @@ export default function MapScreen({ navigation }) {
                 latitude: parseFloat(service.latitude),
                 longitude: parseFloat(service.longitude),
               }}
-              title={`${service.serviceType === 'parking' ? 'Parking' : 'EV Charging'} - ${isAvailable ? 'Available' : 'Not Available'}`}
-              description={`${service.address} - $${service.hourlyRate}/hr`}
               onPress={() => handleMarkerPress(service)}
             >
               <View style={[
@@ -251,51 +278,136 @@ export default function MapScreen({ navigation }) {
         })}
       </MapView>
 
-      {/* Info Card */}
-      <View style={styles.infoCard}>
-        <Text style={styles.infoTitle}>Nearby Stations</Text>
-        <Text style={styles.infoSubtitle}>
-          {services.length} location{services.length !== 1 ? 's' : ''} found
-        </Text>
+      {/* Horizontal Scrollable Location Cards */}
+      <View style={styles.locationCardsContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {services.map((service) => {
+            const isAvailable = service.status === 'available' || service.status === 'active';
+            return (
+              <TouchableOpacity
+                key={service.serviceId}
+                style={styles.locationCard}
+                onPress={() => handleMarkerPress(service)}
+              >
+                <View style={styles.cardHeader}>
+                  <View style={[
+                    styles.cardBadge,
+                    { backgroundColor: service.serviceType === 'parking' ? COLORS.parking : COLORS.charging }
+                  ]}>
+                    <Text style={styles.cardBadgeText}>
+                      {service.serviceType === 'parking' ? 'P' : 'C'}
+                    </Text>
+                  </View>
+                  <View style={styles.cardPrice}>
+                    <Text style={styles.priceText}>${service.hourlyRate}/hr</Text>
+                  </View>
+                </View>
+                <Text style={styles.cardTitle} numberOfLines={2}>
+                  {service.address}
+                </Text>
+                <Text style={styles.cardLocation}>
+                  {service.city}, {service.state}
+                </Text>
+                <View style={[
+                  styles.statusBadge,
+                  { backgroundColor: isAvailable ? COLORS.success : COLORS.gray600 }
+                ]}>
+                  <Text style={styles.statusText}>
+                    {isAvailable ? 'Available' : 'Not Available'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
-      {/* Legend */}
-      <View style={styles.legend}>
-        <Text style={styles.legendTitle}>Legend</Text>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendMarker, { backgroundColor: '#4CAF50' }]}>
-            <Text style={styles.legendMarkerText}>P</Text>
-          </View>
-          <Text style={styles.legendText}>Parking (Available)</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendMarker, { backgroundColor: '#4CAF50' }]}>
-            <Text style={styles.legendMarkerText}>C</Text>
-          </View>
-          <Text style={styles.legendText}>Charging (Available)</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendMarker, { backgroundColor: '#F44336' }]}>
-            <Text style={styles.legendMarkerText}>•</Text>
-          </View>
-          <Text style={styles.legendText}>Not Available</Text>
-        </View>
-      </View>
-
-      {/* Refresh Button */}
-      <TouchableOpacity
-        style={styles.refreshButton}
-        onPress={handleRefresh}
+      {/* Legend Modal */}
+      <Modal
+        visible={showLegend}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowLegend(false)}
       >
-        <Text style={styles.refreshButtonText}>⟳ Refresh</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowLegend(false)}
+        >
+          <View style={styles.legendModal}>
+            <Text style={styles.legendTitle}>Legend</Text>
+            <View style={styles.legendRow}>
+              <View style={[styles.legendDot, { backgroundColor: COLORS.parking }]} />
+              <Text style={styles.legendLabel}>Parking Available</Text>
+            </View>
+            <View style={styles.legendRow}>
+              <View style={[styles.legendDot, { backgroundColor: COLORS.charging }]} />
+              <Text style={styles.legendLabel}>Charging Available</Text>
+            </View>
+            <View style={styles.legendRow}>
+              <View style={[styles.legendDot, { backgroundColor: COLORS.gray500 }]} />
+              <Text style={styles.legendLabel}>Unavailable</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowLegend(false)}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
 
+const { width: screenWidth } = Dimensions.get('window');
+const cardWidth = screenWidth * 0.85; // 85% of screen width
+const isSmallScreen = screenWidth < 375; // iPhone SE and similar
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.primary,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: isSmallScreen ? SPACING.md : SPACING.lg,
+    paddingTop: Platform.OS === 'ios' ? (isSmallScreen ? 50 : 60) : 20,
+    paddingBottom: isSmallScreen ? SPACING.sm : SPACING.md,
+    backgroundColor: COLORS.primary,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  headerLeft: {
+    width: isSmallScreen ? 70 : 96, // Adjusted for small screens
+  },
+  headerTitle: {
+    fontSize: isSmallScreen ? FONT_SIZES.lg : FONT_SIZES.xl,
+    fontWeight: 'bold',
+    color: COLORS.yellow,
+    flex: 1,
+    textAlign: 'center',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    gap: isSmallScreen ? SPACING.sm : SPACING.md,
+    width: isSmallScreen ? 70 : 96,
+  },
+  infoButton: {
+    padding: SPACING.sm,
+  },
+  refreshButton: {
+    padding: SPACING.sm,
   },
   map: {
     flex: 1,
@@ -304,12 +416,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.primary,
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
+    marginTop: SPACING.lg,
+    fontSize: FONT_SIZES.base,
+    color: COLORS.textSecondary,
   },
   markerContainer: {
     width: 40,
@@ -318,100 +430,131 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+    borderColor: COLORS.white,
+    ...SHADOWS.medium,
   },
   markerText: {
-    color: '#fff',
-    fontSize: 20,
+    color: COLORS.white,
+    fontSize: FONT_SIZES.xl,
     fontWeight: 'bold',
   },
-  infoCard: {
+  locationCardsContainer: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 60 : 20,
-    left: 20,
-    right: 20,
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    bottom: 20,
+    left: 0,
+    right: 0,
   },
-  infoTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+  scrollContent: {
+    paddingHorizontal: isSmallScreen ? SPACING.sm : SPACING.lg,
   },
-  infoSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+  locationCard: {
+    backgroundColor: COLORS.cardBackground,
+    padding: isSmallScreen ? SPACING.md : SPACING.lg,
+    borderRadius: BORDER_RADIUS.xl,
+    marginRight: SPACING.md,
+    width: cardWidth,
+    height: isSmallScreen ? 140 : 160,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOWS.large,
   },
-  legend: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 160 : 120,
-    right: 20,
-    backgroundColor: 'white',
-    padding: 12,
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  legendTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  legendItem: {
+  cardHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: isSmallScreen ? SPACING.xs : SPACING.sm,
   },
-  legendMarker: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  cardBadge: {
+    width: isSmallScreen ? 28 : 32,
+    height: isSmallScreen ? 28 : 32,
+    borderRadius: isSmallScreen ? 14 : 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
   },
-  legendMarkerText: {
-    color: '#fff',
-    fontSize: 14,
+  cardBadgeText: {
+    color: COLORS.white,
+    fontSize: isSmallScreen ? FONT_SIZES.sm : FONT_SIZES.base,
     fontWeight: 'bold',
   },
-  legendText: {
-    fontSize: 14,
-    color: '#333',
+  cardPrice: {
+    backgroundColor: COLORS.yellow,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.sm,
   },
-  refreshButton: {
-    position: 'absolute',
-    bottom: 30,
-    right: 20,
-    backgroundColor: '#2196F3',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+  priceText: {
+    color: COLORS.primary,
+    fontSize: isSmallScreen ? FONT_SIZES.xs : FONT_SIZES.sm,
+    fontWeight: 'bold',
   },
-  refreshButtonText: {
-    color: '#fff',
-    fontSize: 16,
+  cardTitle: {
+    fontSize: isSmallScreen ? FONT_SIZES.sm : FONT_SIZES.base,
+    color: COLORS.white,
+    fontWeight: '600',
+    marginBottom: SPACING.xs,
+  },
+  cardLocation: {
+    fontSize: isSmallScreen ? FONT_SIZES.xs : FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginBottom: isSmallScreen ? SPACING.xs : SPACING.sm,
+  },
+  statusBadge: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.sm,
+    alignSelf: 'flex-start',
+  },
+  statusText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.xs,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  legendModal: {
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.xl,
+    marginHorizontal: SPACING['2xl'],
+    minWidth: 250,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  legendTitle: {
+    fontSize: FONT_SIZES.xl,
+    fontWeight: 'bold',
+    color: COLORS.yellow,
+    marginBottom: SPACING.lg,
+  },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: SPACING.md,
+  },
+  legendLabel: {
+    fontSize: FONT_SIZES.base,
+    color: COLORS.textPrimary,
+  },
+  closeButton: {
+    backgroundColor: COLORS.yellow,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    marginTop: SPACING.lg,
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    color: COLORS.primary,
+    fontSize: FONT_SIZES.base,
     fontWeight: 'bold',
   },
 });

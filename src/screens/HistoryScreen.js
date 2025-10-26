@@ -6,11 +6,12 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
-  TouchableOpacity,
+  StatusBar,
 } from 'react-native';
 import { sessionAPI } from '../services/api';
 import { useFocusEffect } from '@react-navigation/native';
 import { logHistory } from '../utils/analytics';
+import { COLORS, FONT_SIZES, SPACING, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 
 export default function HistoryScreen() {
   const [sessions, setSessions] = useState([]);
@@ -72,11 +73,11 @@ export default function HistoryScreen() {
     const toDate = new Date(session.toDatetime);
 
     if (now < fromDate) {
-      return { text: 'Upcoming', color: '#2196F3' };
+      return { text: 'Upcoming', color: COLORS.parking };
     } else if (now >= fromDate && now <= toDate) {
-      return { text: 'Active', color: '#4CAF50' };
+      return { text: 'Active', color: COLORS.success };
     } else {
-      return { text: 'Completed', color: '#999' };
+      return { text: 'Completed', color: COLORS.gray500 };
     }
   };
 
@@ -90,7 +91,7 @@ export default function HistoryScreen() {
           <View style={styles.serviceInfo}>
             <View style={[
               styles.badge,
-              { backgroundColor: service.serviceType === 'parking' ? '#FF6B6B' : '#4ECDC4' }
+              { backgroundColor: service.serviceType === 'parking' ? COLORS.parking : COLORS.charging }
             ]}>
               <Text style={styles.badgeText}>
                 {service.serviceType === 'parking' ? 'P' : 'C'}
@@ -148,7 +149,6 @@ export default function HistoryScreen() {
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <Text style={styles.emptyIcon}>📅</Text>
       <Text style={styles.emptyTitle}>No Bookings Yet</Text>
       <Text style={styles.emptyText}>
         Your booking history will appear here once you make your first reservation
@@ -159,7 +159,8 @@ export default function HistoryScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+        <ActivityIndicator size="large" color={COLORS.yellow} />
         <Text style={styles.loadingText}>Loading history...</Text>
       </View>
     );
@@ -167,6 +168,7 @@ export default function HistoryScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       <FlatList
         data={sessions}
         renderItem={renderSessionItem}
@@ -174,7 +176,12 @@ export default function HistoryScreen() {
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={renderEmptyState}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.yellow}
+            colors={[COLORS.yellow]}
+          />
         }
       />
     </View>
@@ -184,38 +191,36 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.primary,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.primary,
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
+    marginTop: SPACING.lg,
+    fontSize: FONT_SIZES.base,
+    color: COLORS.textSecondary,
   },
   listContainer: {
-    padding: 16,
+    padding: SPACING.lg,
   },
   sessionCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.lg,
+    marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOWS.medium,
   },
   sessionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: SPACING.lg,
   },
   serviceInfo: {
     flexDirection: 'row',
@@ -228,87 +233,87 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: SPACING.md,
   },
   badgeText: {
-    color: '#fff',
-    fontSize: 18,
+    color: COLORS.white,
+    fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
   },
   serviceDetails: {
     flex: 1,
   },
   serviceType: {
-    fontSize: 16,
+    fontSize: FONT_SIZES.base,
     fontWeight: 'bold',
-    color: '#333',
+    color: COLORS.textPrimary,
   },
   serviceAddress: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
   },
   statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.lg,
   },
   statusText: {
-    color: '#fff',
-    fontSize: 12,
+    color: COLORS.white,
+    fontSize: FONT_SIZES.xs,
     fontWeight: 'bold',
   },
   sessionDetails: {
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    paddingTop: 12,
+    borderTopColor: COLORS.border,
+    paddingTop: SPACING.md,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   detailLabel: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
     flex: 1,
   },
   detailValue: {
-    fontSize: 14,
-    color: '#333',
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textPrimary,
     flex: 2,
     textAlign: 'right',
   },
   amountRow: {
-    marginTop: 8,
-    paddingTop: 12,
+    marginTop: SPACING.sm,
+    paddingTop: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: COLORS.border,
   },
   amountLabel: {
-    fontSize: 16,
+    fontSize: FONT_SIZES.base,
     fontWeight: 'bold',
-    color: '#333',
+    color: COLORS.textPrimary,
   },
   amountValue: {
-    fontSize: 18,
+    fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
-    color: '#2196F3',
+    color: COLORS.yellow,
   },
   sessionFooter: {
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: SPACING.md,
+    paddingTop: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: COLORS.border,
   },
   bookingId: {
-    fontSize: 12,
-    color: '#999',
-    marginBottom: 4,
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textMuted,
+    marginBottom: SPACING.xs,
   },
   bookedDate: {
-    fontSize: 12,
-    color: '#999',
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textMuted,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -316,19 +321,15 @@ const styles = StyleSheet.create({
     paddingTop: 100,
     paddingHorizontal: 40,
   },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: FONT_SIZES.xl,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.sm,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: FONT_SIZES.base,
+    color: COLORS.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
   },

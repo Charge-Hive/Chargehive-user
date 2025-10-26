@@ -8,10 +8,13 @@ import {
   ScrollView,
   ActivityIndicator,
   Platform,
+  StatusBar,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 import { sessionAPI } from '../services/api';
 import { logBooking } from '../utils/analytics';
+import { COLORS, FONT_SIZES, SPACING, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 
 export default function BookingScreen({ route, navigation }) {
   const { service } = route.params;
@@ -125,14 +128,16 @@ export default function BookingScreen({ route, navigation }) {
 
   return (
     <ScrollView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       <View style={styles.content}>
-        <Text style={styles.title}>Book Session</Text>
+        {/* Drag Indicator */}
+        <View style={styles.dragIndicator} />
 
         <View style={styles.serviceCard}>
           <View style={styles.serviceHeader}>
             <View style={[
               styles.badge,
-              { backgroundColor: service.serviceType === 'parking' ? '#FF6B6B' : '#4ECDC4' }
+              { backgroundColor: service.serviceType === 'parking' ? COLORS.parking : COLORS.charging }
             ]}>
               <Text style={styles.badgeText}>
                 {service.serviceType === 'parking' ? 'P' : 'C'}
@@ -169,9 +174,11 @@ export default function BookingScreen({ route, navigation }) {
             <DateTimePicker
               value={fromDate}
               mode="datetime"
-              display="default"
+              display="compact"
               onChange={onFromDateChange}
               minimumDate={new Date()}
+              textColor={COLORS.white}
+              themeVariant="dark"
             />
           )}
 
@@ -191,9 +198,11 @@ export default function BookingScreen({ route, navigation }) {
             <DateTimePicker
               value={toDate}
               mode="datetime"
-              display="default"
+              display="compact"
               onChange={onToDateChange}
               minimumDate={fromDate}
+              textColor={COLORS.white}
+              themeVariant="dark"
             />
           )}
         </View>
@@ -232,9 +241,14 @@ export default function BookingScreen({ route, navigation }) {
               }}
             >
               <View style={styles.paymentOptionContent}>
-                <Text style={styles.paymentOptionIcon}>💳</Text>
+                <Ionicons
+                  name="card-outline"
+                  size={24}
+                  color={COLORS.white}
+                  style={styles.paymentOptionIcon}
+                />
                 <Text style={[
-                  styles.paymentOptionText,
+                  styles.paymentOptionLabel,
                   paymentMethod === 'card' && styles.paymentOptionTextSelected,
                 ]}>
                   Credit Card
@@ -256,9 +270,9 @@ export default function BookingScreen({ route, navigation }) {
               }}
             >
               <View style={styles.paymentOptionContent}>
-                <Text style={styles.paymentOptionIcon}>🌊</Text>
+                <Text style={styles.paymentOptionText}>F</Text>
                 <Text style={[
-                  styles.paymentOptionText,
+                  styles.paymentOptionLabel,
                   paymentMethod === 'flow' && styles.paymentOptionTextSelected,
                 ]}>
                   Flow Token
@@ -300,32 +314,33 @@ export default function BookingScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.primary,
   },
   content: {
-    padding: 20,
+    padding: SPACING.lg,
+    paddingTop: SPACING.md,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 20,
+  dragIndicator: {
+    width: 40,
+    height: 4,
+    backgroundColor: COLORS.gray400,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: SPACING.md,
   },
   serviceCard: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: COLORS.cardBackground,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOWS.medium,
   },
   serviceHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: SPACING.sm,
   },
   badge: {
     width: 40,
@@ -333,173 +348,188 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: SPACING.md,
   },
   badgeText: {
-    color: '#fff',
-    fontSize: 18,
+    color: COLORS.white,
+    fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
   },
   serviceType: {
-    fontSize: 20,
+    fontSize: FONT_SIZES.xl,
     fontWeight: 'bold',
-    color: '#333',
+    color: COLORS.textPrimary,
   },
   serviceAddress: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 4,
+    fontSize: FONT_SIZES.base,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.xs,
   },
   serviceLocation: {
-    fontSize: 14,
-    color: '#999',
-    marginBottom: 12,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textMuted,
+    marginBottom: SPACING.md,
   },
   serviceRate: {
-    fontSize: 18,
+    fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
-    color: '#2196F3',
+    color: COLORS.yellow,
   },
   section: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 20,
+    backgroundColor: COLORS.cardBackground,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: FONT_SIZES.base,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 16,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.sm,
   },
   dateTimeRow: {
-    marginBottom: 16,
+    marginBottom: SPACING.md,
   },
   label: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 8,
+    fontSize: FONT_SIZES.base,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.sm,
   },
   dateButton: {
-    backgroundColor: '#f5f5f5',
-    padding: 14,
-    borderRadius: 8,
+    backgroundColor: COLORS.inputBackground,
+    padding: SPACING.sm,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: COLORS.border,
   },
   dateButtonText: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.white,
+    fontWeight: '600',
   },
   summaryCard: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 20,
+    backgroundColor: COLORS.cardBackground,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   summaryTitle: {
-    fontSize: 18,
+    fontSize: FONT_SIZES.base,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 16,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.sm,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: SPACING.sm,
   },
   summaryLabel: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: FONT_SIZES.base,
+    color: COLORS.textSecondary,
   },
   summaryValue: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: FONT_SIZES.base,
+    color: COLORS.textPrimary,
   },
   totalRow: {
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: SPACING.md,
+    paddingTop: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: COLORS.border,
   },
   totalLabel: {
-    fontSize: 18,
+    fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
-    color: '#333',
+    color: COLORS.textPrimary,
   },
   totalAmount: {
-    fontSize: 24,
+    fontSize: FONT_SIZES['2xl'],
     fontWeight: 'bold',
-    color: '#2196F3',
+    color: COLORS.yellow,
   },
   paymentMethodSection: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 20,
+    backgroundColor: COLORS.cardBackground,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   paymentOptions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: SPACING.sm,
     justifyContent: 'space-between',
   },
   paymentOption: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    padding: 16,
-    borderRadius: 10,
+    backgroundColor: COLORS.inputBackground,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
     borderWidth: 2,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
     alignItems: 'center',
   },
   paymentOptionSelected: {
-    borderColor: '#2196F3',
-    backgroundColor: '#E3F2FD',
+    borderColor: COLORS.yellow,
+    backgroundColor: COLORS.cardBackground,
   },
   paymentOptionContent: {
     alignItems: 'center',
   },
   paymentOptionIcon: {
-    fontSize: 32,
-    marginBottom: 8,
+    marginBottom: SPACING.xs,
   },
   paymentOptionText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 24,
+    marginBottom: SPACING.xs,
+    color: COLORS.white,
+    fontWeight: 'bold',
+  },
+  paymentOptionLabel: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textSecondary,
     fontWeight: '600',
   },
   paymentOptionTextSelected: {
-    color: '#2196F3',
+    color: COLORS.yellow,
     fontWeight: 'bold',
   },
   selectedIndicator: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#2196F3',
-    marginTop: 8,
+    backgroundColor: COLORS.yellow,
+    marginTop: SPACING.sm,
   },
   bookButton: {
-    backgroundColor: '#2196F3',
-    paddingVertical: 16,
-    borderRadius: 8,
+    backgroundColor: COLORS.yellow,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: SPACING.sm,
+    ...SHADOWS.medium,
   },
   bookButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: COLORS.gray600,
+    opacity: 0.6,
   },
   bookButtonText: {
-    color: '#fff',
-    fontSize: 18,
+    color: COLORS.primary,
+    fontSize: FONT_SIZES.base,
     fontWeight: 'bold',
   },
   cancelButton: {
-    paddingVertical: 16,
+    paddingVertical: SPACING.md,
     alignItems: 'center',
   },
   cancelButtonText: {
-    color: '#666',
-    fontSize: 16,
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZES.sm,
   },
 });

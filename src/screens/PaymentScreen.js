@@ -7,9 +7,12 @@ import {
   Alert,
   ScrollView,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { paymentAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { COLORS, FONT_SIZES, SPACING, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 
 export default function PaymentScreen({ route, navigation }) {
   const { sessionId, service, fromDate, toDate, totalAmount } = route.params;
@@ -136,7 +139,8 @@ export default function PaymentScreen({ route, navigation }) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+        <ActivityIndicator size="large" color={COLORS.yellow} />
         <Text style={styles.loadingText}>Preparing payment...</Text>
       </View>
     );
@@ -145,6 +149,7 @@ export default function PaymentScreen({ route, navigation }) {
   if (!paymentData) {
     return (
       <View style={styles.errorContainer}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
         <Text style={styles.errorText}>Failed to load payment details</Text>
         <TouchableOpacity
           style={styles.backButton}
@@ -158,6 +163,7 @@ export default function PaymentScreen({ route, navigation }) {
 
   return (
     <ScrollView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       <View style={styles.content}>
         <Text style={styles.title}>Pay with Flow</Text>
 
@@ -208,7 +214,7 @@ export default function PaymentScreen({ route, navigation }) {
           </View>
 
           <View style={styles.infoBox}>
-            <Text style={styles.infoIcon}>ℹ️</Text>
+            <Ionicons name="information-circle" size={20} color={COLORS.info} style={styles.infoIcon} />
             <Text style={styles.infoText}>
               Price locked for 15 minutes at ${paymentData.flowTokenPriceUsd.toFixed(6)} per FLOW
             </Text>
@@ -227,7 +233,7 @@ export default function PaymentScreen({ route, navigation }) {
 
           {walletBalance !== null && walletBalance < paymentData.flowTokenAmount && (
             <View style={styles.warningBox}>
-              <Text style={styles.warningIcon}>⚠️</Text>
+              <Ionicons name="warning" size={20} color={COLORS.warning} style={styles.warningIcon} />
               <Text style={styles.warningText}>
                 Insufficient balance. You need {paymentData.flowTokenAmount.toFixed(8)} FLOW
               </Text>
@@ -236,7 +242,7 @@ export default function PaymentScreen({ route, navigation }) {
 
           {walletBalance !== null && walletBalance >= paymentData.flowTokenAmount && (
             <View style={styles.successBox}>
-              <Text style={styles.successIcon}>✅</Text>
+              <Ionicons name="checkmark-circle" size={20} color={COLORS.success} style={styles.successIcon} />
               <Text style={styles.successText}>
                 Sufficient balance available
               </Text>

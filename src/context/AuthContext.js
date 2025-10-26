@@ -44,25 +44,38 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const response = await authAPI.login(email, password);
+      console.log('🔐 Login response:', JSON.stringify(response, null, 2));
 
       if (response.success) {
+        // Backend returns access_token with underscore, not accessToken
         const { user: userData, access_token: accessToken } = response.data;
 
-        // Save to state
-        setUser(userData);
-        setAuthToken(accessToken);
+        console.log('✅ Login successful, saving token...');
+        console.log('📝 Token:', accessToken);
+        console.log('👤 User data:', userData);
 
-        // Save to storage
+        // Save to storage first
         await AsyncStorage.setItem("authToken", accessToken);
         await AsyncStorage.setItem("userData", JSON.stringify(userData));
 
-        logAuth.loginSuccess(email, userData.userId);
+        console.log('💾 Token saved to AsyncStorage');
+
+        // Verify it was saved
+        const savedToken = await AsyncStorage.getItem("authToken");
+        console.log('✔️ Verified saved token:', savedToken ? 'YES' : 'NO');
+
+        // Then update state
+        setUser(userData);
+        setAuthToken(accessToken);
+
+        logAuth.loginSuccess(email, userData.id);
         return { success: true };
       }
 
       logAuth.loginFailure(email, "Login failed");
       return { success: false, message: "Login failed" };
     } catch (error) {
+      console.error('❌ Login error:', error);
       logAuth.loginFailure(email, error);
       return {
         success: false,
@@ -77,25 +90,38 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const response = await authAPI.register(email, password, name, phone);
+      console.log('📝 Register response:', JSON.stringify(response, null, 2));
 
       if (response.success) {
-        const { user: userData, accessToken } = response.data;
+        // Backend returns access_token with underscore, not accessToken
+        const { user: userData, access_token: accessToken } = response.data;
 
-        // Save to state
-        setUser(userData);
-        setAuthToken(accessToken);
+        console.log('✅ Registration successful, saving token...');
+        console.log('📝 Token:', accessToken);
+        console.log('👤 User data:', userData);
 
-        // Save to storage
+        // Save to storage first
         await AsyncStorage.setItem("authToken", accessToken);
         await AsyncStorage.setItem("userData", JSON.stringify(userData));
 
-        logAuth.signupSuccess(email, userData.userId);
+        console.log('💾 Token saved to AsyncStorage');
+
+        // Verify it was saved
+        const savedToken = await AsyncStorage.getItem("authToken");
+        console.log('✔️ Verified saved token:', savedToken ? 'YES' : 'NO');
+
+        // Then update state
+        setUser(userData);
+        setAuthToken(accessToken);
+
+        logAuth.signupSuccess(email, userData.id);
         return { success: true };
       }
 
       logAuth.signupFailure(email, "Registration failed");
       return { success: false, message: "Registration failed" };
     } catch (error) {
+      console.error('❌ Registration error:', error);
       logAuth.signupFailure(email, error);
       return {
         success: false,
