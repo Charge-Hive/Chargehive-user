@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "chargehive-user",
+    "name": "ChargeHive User",
     "slug": "chargehive-user",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,20 +10,42 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#2196F3"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.chargehive.user",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "ChargeHive needs access to your location to show nearby parking and charging stations."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#2196F3"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.chargehive.user",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAFkOhddibMIY0iA3VVAUx7Nt69pJSBkio"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow ChargeHive to use your location to show nearby parking and charging stations."
+        }
+      ]
+    ]
   }
 }
