@@ -27,11 +27,67 @@ export default function WalletScreen() {
   const [amount, setAmount] = useState('');
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [balance, setBalance] = useState('0.00');
+  const [walletAddress, setWalletAddress] = useState('');
+  const [sendingTransaction, setSendingTransaction] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     logWallet.screenOpened();
-    loadPaymentHistory();
+    loadWalletData();
   }, []);
+
+  const loadWalletData = async () => {
+    try {
+      setLoading(true);
+      const { walletAPI, paymentAPI } = require('../services/api');
+
+      // Load wallet details (balance and address)
+      try {
+        const walletResponse = await walletAPI.getWalletDetails();
+        if (walletResponse.success && walletResponse.data) {
+          setBalance(walletResponse.data.balance || '0.00');
+          setWalletAddress(walletResponse.data.address || user?.walletAddress || '');
+        } else {
+          // Fallback to user wallet address from auth context
+          setWalletAddress(user?.walletAddress || '');
+        }
+      } catch (walletError) {
+        console.error('Error loading wallet details:', walletError);
+        // Fallback to user wallet address from auth context
+        setWalletAddress(user?.walletAddress || '');
+      }
+
+      // Load wallet transactions
+      try {
+        const txResponse = await walletAPI.getWalletTransactions(50);
+        if (txResponse.success && txResponse.data) {
+          const walletTransactions = txResponse.data.map(tx => ({
+            id: tx.id || tx.transactionId,
+            type: tx.type || 'transfer',
+            amount: tx.amount,
+            flowAmount: tx.flowAmount || tx.amount,
+            description: tx.description || 'Flow Transfer',
+            date: new Date(tx.timestamp || tx.date).toISOString().split('T')[0],
+            status: tx.status || 'completed',
+            transactionHash: tx.transactionHash,
+            from: tx.from,
+            to: tx.to,
+          }));
+          setTransactions(walletTransactions);
+        }
+      } catch (txError) {
+        console.log('No wallet transactions found, loading payment history instead');
+        // Fallback to payment history if wallet transactions fail
+        await loadPaymentHistory();
+      }
+    } catch (error) {
+      console.error('Error loading wallet data:', error);
+      setTransactions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadPaymentHistory = async () => {
     try {
@@ -59,13 +115,8 @@ export default function WalletScreen() {
       console.error('Error loading payment history:', error);
       // On error, use empty array
       setTransactions([]);
-    } finally {
-      setLoading(false);
     }
   };
-
-  // Mock balance - in a real app, this would come from blockchain
-  const balance = '150.00';
 
   const handleSend = () => {
     logWallet.sendAttempt(recipientAddress, amount);
@@ -80,10 +131,10 @@ export default function WalletScreen() {
       return;
     }
 
-    // In a real app, this would interact with the blockchain
+    // Confirm transaction with user
     Alert.alert(
       'Confirm Transaction',
-      `Send ${amount} CHV tokens to ${recipientAddress.substring(0, 10)}...?`,
+      `Send ${amount} FLOW tokens to ${recipientAddress.substring(0, 10)}...?`,
       [
         {
           text: 'Cancel',
@@ -92,22 +143,65 @@ export default function WalletScreen() {
         },
         {
           text: 'Send',
-          onPress: () => {
-            logWallet.sendSuccess(recipientAddress, amount);
-            setShowSendModal(false);
-            setRecipientAddress('');
-            setAmount('');
-            Alert.alert('Success', 'Transaction sent successfully!');
+          onPress: async () => {
+            await executeSendTransaction();
           },
         },
       ]
     );
   };
 
+  const executeSendTransaction = async () => {
+    try {
+      setSendingTransaction(true);
+      const { walletAPI } = require('../services/api');
+
+      const response = await walletAPI.sendFlowTokens(recipientAddress, amount);
+
+      if (response.success) {
+        logWallet.sendSuccess(recipientAddress, amount);
+        Alert.alert(
+          'Success',
+          `Transaction sent successfully!\n\nTransaction ID: ${response.data.transactionId?.substring(0, 20)}...`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setShowSendModal(false);
+                setRecipientAddress('');
+                setAmount('');
+                // Reload wallet data to update balance
+                loadWalletData();
+              },
+            },
+          ]
+        );
+      } else {
+        throw new Error(response.message || 'Transaction failed');
+      }
+    } catch (error) {
+      console.error('Error sending tokens:', error);
+      logWallet.sendCancelled();
+      Alert.alert(
+        'Transaction Failed',
+        error.response?.data?.message || error.message || 'Failed to send tokens. Please try again.'
+      );
+    } finally {
+      setSendingTransaction(false);
+    }
+  };
+
   const copyAddressToClipboard = async () => {
-    await Clipboard.setStringAsync(user.walletAddress);
-    logWallet.addressCopied(user.walletAddress);
+    const addressToCopy = walletAddress || user?.walletAddress || '';
+    await Clipboard.setStringAsync(addressToCopy);
+    logWallet.addressCopied(addressToCopy);
     Alert.alert('Copied', 'Wallet address copied to clipboard');
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadWalletData();
+    setRefreshing(false);
   };
 
   return (
@@ -116,10 +210,25 @@ export default function WalletScreen() {
       <View style={styles.content}>
         {/* Wallet Balance Card */}
         <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>Total Balance</Text>
-          <Text style={styles.balanceAmount}>{balance} CHV</Text>
+          <View style={styles.balanceHeader}>
+            <View style={styles.balanceHeaderLeft}>
+              <Text style={styles.balanceLabel}>Total Balance</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.refreshButton}
+              onPress={handleRefresh}
+              disabled={refreshing}
+            >
+              <Ionicons
+                name="refresh"
+                size={24}
+                color={refreshing ? COLORS.textMuted : COLORS.yellow}
+              />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.balanceAmount}>{balance} FLOW</Text>
           <Text style={styles.walletAddress}>
-            {user?.walletAddress?.substring(0, 20)}...
+            {(walletAddress || user?.walletAddress)?.substring(0, 20)}...
           </Text>
         </View>
 
@@ -212,17 +321,23 @@ export default function WalletScreen() {
 
               <TextInput
                 style={styles.input}
-                placeholder="Amount (CHV)"
+                placeholder="Amount (FLOW)"
                 placeholderTextColor={COLORS.textPlaceholder}
                 value={amount}
                 onChangeText={setAmount}
                 keyboardType="decimal-pad"
               />
 
-              <Text style={styles.balanceInfo}>Available: {balance} CHV</Text>
+              <Text style={styles.balanceInfo}>Available: {balance} FLOW</Text>
 
-              <TouchableOpacity style={styles.modalButton} onPress={handleSend}>
-                <Text style={styles.modalButtonText}>Send</Text>
+              <TouchableOpacity
+                style={[styles.modalButton, sendingTransaction && styles.modalButtonDisabled]}
+                onPress={handleSend}
+                disabled={sendingTransaction}
+              >
+                <Text style={styles.modalButtonText}>
+                  {sendingTransaction ? 'Sending...' : 'Send'}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -248,13 +363,13 @@ export default function WalletScreen() {
 
               <View style={styles.qrContainer}>
                 <QRCode
-                  value={user?.walletAddress || 'No wallet address'}
+                  value={walletAddress || user?.walletAddress || 'No wallet address'}
                   size={200}
                 />
               </View>
 
               <Text style={styles.addressLabel}>Your Wallet Address:</Text>
-              <Text style={styles.addressText}>{user?.walletAddress}</Text>
+              <Text style={styles.addressText}>{walletAddress || user?.walletAddress}</Text>
 
               <TouchableOpacity
                 style={styles.copyButton}
@@ -297,7 +412,8 @@ export default function WalletScreen() {
                         styles.transactionAmountDetail,
                         transaction.type === 'received' ? styles.amountPositive : styles.amountNegative
                       ]}>
-                        {transaction.type === 'received' ? '+' : '-'}{transaction.amount} CHV
+                        {transaction.type === 'received' ? '+' : '-'}
+                        {transaction.flowAmount ? transaction.flowAmount.toFixed(2) : transaction.amount} FLOW
                       </Text>
                     </View>
                     <Text style={styles.transactionInfo}>
@@ -343,10 +459,25 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     ...SHADOWS.large,
   },
+  balanceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: SPACING.sm,
+  },
+  balanceHeaderLeft: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  refreshButton: {
+    padding: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.cardBackground,
+  },
   balanceLabel: {
     color: COLORS.textSecondary,
     fontSize: FONT_SIZES.base,
-    marginBottom: SPACING.sm,
   },
   balanceAmount: {
     color: COLORS.yellow,
@@ -493,6 +624,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.md,
     ...SHADOWS.medium,
+  },
+  modalButtonDisabled: {
+    backgroundColor: COLORS.textMuted,
+    opacity: 0.6,
   },
   modalButtonText: {
     color: COLORS.primary,

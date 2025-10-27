@@ -109,18 +109,20 @@ export const serviceAPI = {
 
 // Payment API calls
 export const paymentAPI = {
-  initiateFlowPayment: async (sessionId) => {
+  initiateFlowPayment: async (serviceId, fromDatetime, toDatetime) => {
     const response = await api.post('/payments/initiateFlow', {
-      sessionId,
+      serviceId,
+      fromDatetime,
+      toDatetime,
     });
     return response.data;
   },
 
-  executeFlowPayment: async (paymentId, transactionHash, senderWalletAddress) => {
+  executeFlowPayment: async (paymentId, senderWalletAddress) => {
     const response = await api.post('/payments/executeFlow', {
       paymentId,
-      transactionHash,
       senderWalletAddress,
+      // transactionHash is optional - backend generates it from blockchain
     });
     return response.data;
   },
@@ -132,6 +134,32 @@ export const paymentAPI = {
 
   getUserPaymentHistory: async () => {
     const response = await api.get('/payments/user');
+    return response.data;
+  },
+};
+
+// Wallet API calls
+export const walletAPI = {
+  getWalletDetails: async () => {
+    const response = await api.get('/wallet');
+    return response.data;
+  },
+
+  getWalletTransactions: async (limit = 10) => {
+    const response = await api.get(`/wallet/transactions?limit=${limit}`);
+    return response.data;
+  },
+
+  sendFlowTokens: async (toAddress, amount) => {
+    const response = await api.post('/wallet/send', {
+      toAddress,
+      amount,
+    });
+    return response.data;
+  },
+
+  getReceiveInfo: async () => {
+    const response = await api.get('/wallet/receive');
     return response.data;
   },
 };

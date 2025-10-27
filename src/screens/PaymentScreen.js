@@ -10,12 +10,12 @@ import {
   StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { paymentAPI } from '../services/api';
+import { paymentAPI, walletAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { COLORS, FONT_SIZES, SPACING, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 
 export default function PaymentScreen({ route, navigation }) {
-  const { sessionId, service, fromDate, toDate, totalAmount } = route.params;
+  const { service, fromDate, toDate } = route.params;
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
@@ -26,23 +26,44 @@ export default function PaymentScreen({ route, navigation }) {
     initiatePayment();
   }, []);
 
+  const fetchWalletBalance = async () => {
+    try {
+      // Fetch wallet balance from backend
+      const response = await walletAPI.getWalletDetails();
+      if (response.success && response.data) {
+        setWalletBalance(parseFloat(response.data.balance || 0));
+      }
+    } catch (error) {
+      console.warn('Failed to fetch wallet balance:', error);
+      // Set to null if wallet not found - user can still proceed
+      setWalletBalance(null);
+    }
+  };
+
   const initiatePayment = async () => {
     try {
       setLoading(true);
-      const response = await paymentAPI.initiateFlowPayment(sessionId);
+
+      // Call API with serviceId and datetime range (backend expects these, not sessionId)
+      const response = await paymentAPI.initiateFlowPayment(
+        service.serviceId,
+        fromDate,
+        toDate
+      );
 
       if (response.success) {
         setPaymentData(response.data);
 
-        // TODO: Fetch actual wallet balance from Flow blockchain
-        // For now, using a mock balance
-        setWalletBalance(100.5); // Mock balance: 100.5 FLOW tokens
+        // Fetch actual wallet balance from backend
+        await fetchWalletBalance();
       } else {
         Alert.alert('Error', 'Failed to initiate payment');
         navigation.goBack();
       }
     } catch (error) {
       console.error('Payment initiation error:', error);
+      setLoading(false);
+
       Alert.alert(
         'Payment Failed',
         error.response?.data?.message || 'Failed to initiate payment. Please try again.',
@@ -53,6 +74,9 @@ export default function PaymentScreen({ route, navigation }) {
           },
         ]
       );
+
+      // Navigate back immediately to prevent crash
+      navigation.goBack();
     } finally {
       setLoading(false);
     }
@@ -88,16 +112,11 @@ export default function PaymentScreen({ route, navigation }) {
     try {
       setPaying(true);
 
-      // TODO: Integrate with Flow blockchain wallet
-      // For now, generate a mock transaction hash
-      const mockTransactionHash = '0x' + Math.random().toString(36).substring(2, 15) +
-                                   Math.random().toString(36).substring(2, 15) +
-                                   Math.random().toString(36).substring(2, 15);
-
+      // Backend will handle the actual blockchain transaction
+      // Backend sends real FLOW tokens and generates the transaction hash
       const response = await paymentAPI.executeFlowPayment(
         paymentData.paymentId,
-        mockTransactionHash,
-        user.walletAddress || '0xUserWalletAddress'
+        user.wallet_address
       );
 
       setPaying(false);

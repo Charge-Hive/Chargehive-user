@@ -56,6 +56,19 @@ export default function BookingScreen({ route, navigation }) {
       return;
     }
 
+    // If Flow payment selected, navigate to payment screen directly WITHOUT booking
+    // Payment flow will handle: initiate payment → pay → create session
+    if (paymentMethod === 'flow') {
+      navigation.navigate('Payment', {
+        service: service,
+        fromDate: fromDate.toISOString(),
+        toDate: toDate.toISOString(),
+        totalAmount: totalAmount,
+      });
+      return;
+    }
+
+    // For card payment, book the session first
     setLoading(true);
 
     try {
@@ -70,28 +83,17 @@ export default function BookingScreen({ route, navigation }) {
       if (response.success) {
         logBooking.bookingSuccess(service.serviceId, response.data?.sessionId, totalAmount);
 
-        // If Flow payment selected, navigate to payment screen
-        if (paymentMethod === 'flow') {
-          navigation.navigate('Payment', {
-            sessionId: response.data.sessionId,
-            service: service,
-            fromDate: fromDate.toISOString(),
-            toDate: toDate.toISOString(),
-            totalAmount: totalAmount,
-          });
-        } else {
-          // Card payment (placeholder for now)
-          Alert.alert(
-            'Success',
-            'Session booked successfully! Card payment processing...',
-            [
-              {
-                text: 'OK',
-                onPress: () => navigation.goBack(),
-              },
-            ]
-          );
-        }
+        // Card payment (placeholder for now)
+        Alert.alert(
+          'Success',
+          'Session booked successfully! Card payment processing...',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.goBack(),
+            },
+          ]
+        );
       } else {
         logBooking.bookingFailed(service.serviceId, 'Failed to book session');
         Alert.alert('Error', 'Failed to book session');
