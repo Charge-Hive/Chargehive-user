@@ -162,6 +162,11 @@ export const walletAPI = {
     const response = await api.get('/wallet/receive');
     return response.data;
   },
+
+  getCHTBalance: async () => {
+    const response = await api.get('/wallet/cht-balance');
+    return response.data;
+  },
 };
 
 export default api;

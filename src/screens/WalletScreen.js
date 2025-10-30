@@ -28,6 +28,7 @@ export default function WalletScreen() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState('0.00');
+  const [chtBalance, setChtBalance] = useState('0.00');
   const [walletAddress, setWalletAddress] = useState('');
   const [sendingTransaction, setSendingTransaction] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -42,11 +43,13 @@ export default function WalletScreen() {
       setLoading(true);
       const { walletAPI, paymentAPI } = require('../services/api');
 
-      // Load wallet details (balance and address)
+      // Load wallet details (FLOW balance and address)
       try {
         const walletResponse = await walletAPI.getWalletDetails();
         if (walletResponse.success && walletResponse.data) {
-          setBalance(walletResponse.data.balance || '0.00');
+          // Format balance to 2 decimal places
+          const flowBalance = parseFloat(walletResponse.data.balance || '0').toFixed(2);
+          setBalance(flowBalance);
           setWalletAddress(walletResponse.data.address || user?.walletAddress || '');
         } else {
           // Fallback to user wallet address from auth context
@@ -56,6 +59,20 @@ export default function WalletScreen() {
         console.error('Error loading wallet details:', walletError);
         // Fallback to user wallet address from auth context
         setWalletAddress(user?.walletAddress || '');
+      }
+
+      // Load CHT balance
+      try {
+        const chtResponse = await walletAPI.getCHTBalance();
+        if (chtResponse.success && chtResponse.data) {
+          // Format CHT balance to 2 decimal places
+          const chtBalanceFormatted = parseFloat(chtResponse.data.chtBalance || '0').toFixed(2);
+          setChtBalance(chtBalanceFormatted);
+        }
+      } catch (chtError) {
+        console.error('Error loading CHT balance:', chtError);
+        // Set to 0 if CHT balance fails to load
+        setChtBalance('0.00');
       }
 
       // Load wallet transactions
@@ -212,7 +229,7 @@ export default function WalletScreen() {
         <View style={styles.balanceCard}>
           <View style={styles.balanceHeader}>
             <View style={styles.balanceHeaderLeft}>
-              <Text style={styles.balanceLabel}>Total Balance</Text>
+              <Text style={styles.balanceLabel}>Wallet Balance</Text>
             </View>
             <TouchableOpacity
               style={styles.refreshButton}
@@ -226,7 +243,17 @@ export default function WalletScreen() {
               />
             </TouchableOpacity>
           </View>
-          <Text style={styles.balanceAmount}>{balance} FLOW</Text>
+
+          {/* FLOW Balance */}
+          <View style={styles.balanceRow}>
+            <Text style={styles.balanceAmount}>{balance} FLOW</Text>
+          </View>
+
+          {/* CHT Balance */}
+          <View style={styles.chtBalanceRow}>
+            <Text style={styles.chtBalanceAmount}>{chtBalance} CHT</Text>
+          </View>
+
           <Text style={styles.walletAddress}>
             {(walletAddress || user?.walletAddress)?.substring(0, 20)}...
           </Text>
@@ -479,11 +506,21 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: FONT_SIZES.base,
   },
+  balanceRow: {
+    marginBottom: SPACING.sm,
+  },
   balanceAmount: {
     color: COLORS.yellow,
     fontSize: 42,
     fontWeight: 'bold',
+  },
+  chtBalanceRow: {
     marginBottom: SPACING.md,
+  },
+  chtBalanceAmount: {
+    color: COLORS.success,
+    fontSize: 32,
+    fontWeight: 'bold',
   },
   walletAddress: {
     color: COLORS.textMuted,
